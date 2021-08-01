@@ -1,7 +1,11 @@
 # %%
 # EXPLORATORY DATA ANALYSIS
-# Basics
 
+# libraries
+
+import xlrd
+import matplotlib.colors as colors
+import random
 from math import sqrt
 from scipy import stats
 from scipy.stats import kurtosis
@@ -24,16 +28,6 @@ import numpy as np
 import warnings
 warnings.filterwarnings('ignore')
 
-
-# Regression modelling
-
-# Visualization
-
-# Metrics
-
-# Splitting
-
-# Stats & Math
 
 # %%
 # Showing determined number of columns
@@ -135,11 +129,174 @@ dim_v1 = data.shape
 dim_v1
 
 # First we will get a list of those clients
-droplist = val_customer.loc[val_customer['nan_per'] >= 25, ['Customer ID']]
+droplist = val_customer.loc[val_customer['nan_per'] >= 50, ['Customer ID']]
+
+# %%
+
+# Then we iterate for filtering the dataframe
+for c in droplist['Customer ID']:
+    data = data[data['Customer ID'] != c]
+print(data.shape)
+
+# %%
+var = df1.shape[0] - data.shape[0]
+
+data.isnull().sum()
+
+# With this evidence, we can see that most of the NaN customer data
+# is not useful. Also, the tiny part of NaN data is too short and not
+# significant enough to be imputed.
+
+# %%
+# That's why it's better to go back
+# few steps and merging df1 and df1 with inner joined
+
+data = df1.merge(df2, on="Transaction ID", how='inner')
+data.shape
+
+# %%
+
+# That decision made us lost this percentage of the total amount of data
+dataloss = var*100/df1.shape[0]
+dataloss
+# 18.34% of loss, it is not that bad at all
 
 
 # %%
-data.drop(data['Customer ID'] == droplist)
+# Let's Watch a quicker look to our dataset
+
+d = dtale.show(data)
+d.open_browser()
+
+# %%
+
+# FUNCTIONS
+
+# TABLE FUNCTION FOR CATEGORY VARIABLES
+
+
+def tab(data, col1, col2="Freq", norm=False, marg=True, marg_name='Total'):
+    # Warning
+    if ((col2 != "Freq") & (col2 not in data.columns)) | (col1 not in data.columns):
+        print('There is at least one column that not belongs to the dataframe')
+        return
+    # Absolute Frequency table
+    if col2 == "Freq":
+        if norm == False:
+            tab = pd.crosstab(index=data[col1], columns=col2, normalize=False,
+                              margins=marg, margins_name='Total')
+    # Relative Frequency
+        else:
+            tab = pd.crosstab(index=data[col1], columns=col2, normalize=True,
+                              margins=marg, margins_name='Total').round(4).apply(lambda r: r*100, axis=1)
+    # Relative frequencies with 2 variables
+    elif (col2 != "Freq") & (norm == True):
+        tab = pd.crosstab(index=data[col1], columns=data[col2], normalize=True,
+                          margins=marg, margins_name='Total').round(4).apply(lambda r: r*100, axis=1)
+    # Absolute frequencies for 2 variables
+    else:
+        tab = pd.crosstab(index=data[col1], columns=data[col2], normalize=False,
+                          margins=marg, margins_name='Total')
+
+    return tab
+
+
+# COUNTPLOT FUNCTION
+colors_list = list(colors._colors_full_map.values())
+
+
+def cntplot(x, data, title):
+    sns.set_style('whitegrid')
+    sns.set_context('notebook')
+    sns.catplot(x=x,
+                data=data,
+                kind='count',
+                palette=random.choices(colors_list, k=2),
+                edgecolor='black',
+                linewidth=1.25)
+    plt.title(title, fontsize=16, weight='bold')
+
+
+# PIE CHART FUNCTION
+def pieplot(data, catcol, title):
+    tab(data, catcol,
+        norm=True, marg=False).plot(kind='pie',
+                                    autopct='%.2f',
+                                    colors=random.choices(colors_list, k=2),
+                                    subplots=True,
+                                    wedgeprops={'linewidth': 1.5,
+                                                'edgecolor': 'black'})
+    plt.title(title, fontsize=16, weight='bold')
+
+
+# %%
+# DATA MANIPULATION & Visualization
+# %%
+# Transaction ID
+# We have to change its data type to string type
+data['Transaction ID'] = data['Transaction ID'].astype('string')
+
+
+# %%
+# Customer ID
+# We have to change its data type to string type
+data['Customer ID'] = data['Customer ID'].astype('string')
+data['Customer ID']
+
+# %%
+# Payment mode
+data['Payment_Mode'].describe()
+data['Payment_Mode'].value_counts()
+tab(data, 'Payment_Mode', norm=True)
+
+
+# %%
+pieplot(data, 'Payment_Mode', title='Payment Method Pie Chart')
+cntplot(data['Payment_Mode'], data, title='Payment Method Countplot')
+
+
+# %%
+# Gender
+data['Gender'].describe()
+data['Gender'].value_counts()
+tab(data, 'Gender', norm=False)
+
+# %%
+pieplot(data, 'Gender', title='Gender Pie Chart')
+cntplot(data['Gender'], data, title='Gender Countplot')
+
+
+# %%
+
+# AGE
+
+# Distribution of the variable
+data['Age'].hist(bins=15)
+
+# Distribution of the logarithm transformation
+np.log(data['Age']).hist(bins=15)
+
+
+# %%
+sns.boxplot(x='Age', data=data, linewidth=1.5, orient="h", palette="Set2")
+sns.swarmplot(x="Age", data=data, color=".25", alpha=0.05)
+
+
+# %%
+
+data_num = data.select_dtypes(include=["number"])
+data_num.corr()
+sns.heatmap(data_num.corr(), annot=True)
+
+
+# %%
+
+data['Date of Travel'].apply(lambda s: xlrd.xldate.xldate_as_datetime(s, 0))
+
+
+# %%
+
+data['Date of Travel']
 
 
 # %%%
