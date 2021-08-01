@@ -3,6 +3,8 @@
 
 # libraries
 
+import matplotlib.dates as mdates
+from matplotlib.dates import DateFormatter
 import xlrd
 import matplotlib.colors as colors
 import random
@@ -229,6 +231,16 @@ def pieplot(data, catcol, title):
     plt.title(title, fontsize=16, weight='bold')
 
 
+# DISPERSION MEASURES FOR NUMERIC VARIABLES
+def disper_table(data, col):
+    table = [['std_%s' % (col[0:2]), 'var_%s' % (col[0:2]), 'cv_%s' % (col[0:2]), 'skew_%s' % (col[0:2]),
+              'kurt_%s' % (col[0:2])],
+             [data[col].std(ddof=0), data[col].var(ddof=0),
+             stats.variation(data[col]), stats.skew(data[col]), kurtosis(data[col], fisher=True)]]
+
+    return pd.DataFrame(table, columns=table[0]).drop([0])
+
+
 # %%
 # DATA MANIPULATION & Visualization
 # %%
@@ -270,6 +282,10 @@ cntplot(data['Gender'], data, title='Gender Countplot')
 
 # AGE
 
+disper_table(data, 'Age')
+
+# %%
+
 # Distribution of the variable
 data['Age'].hist(bins=15)
 
@@ -279,7 +295,115 @@ np.log(data['Age']).hist(bins=15)
 
 # %%
 sns.boxplot(x='Age', data=data, linewidth=1.5, orient="h", palette="Set2")
-sns.swarmplot(x="Age", data=data, color=".25", alpha=0.05)
+sns.swarmplot(x="Age", data=data.sample(frac=.01), color=".25", alpha=0.05)
+
+
+# %%
+
+# INCOME
+
+# Got renamed
+data.rename(columns={'Income (USD/Month)': 'Income'}, inplace=True)
+
+# %%
+
+disper_table(data, 'Income')
+
+
+# %%
+# Distribution of the variable
+data['Income'].hist(bins=15)
+
+# Distribution of the logarithm transformation
+np.log(data['Income']).hist(bins=15)
+
+# %%
+sns.boxplot(x='Income', data=data, linewidth=1.5, orient="h",
+            palette=random.choices(colors_list, k=1))
+sns.swarmplot(x="Income", data=data.sample(frac=.01), color=".25", alpha=0.05)
+
+
+# %%
+datalog = data.copy()
+datalog['log_income'] = np.log(data['Income'])
+sns.boxplot(x='log_income', data=datalog, linewidth=1.5,
+            orient="h", palette=random.choices(colors_list, k=1))
+sns.swarmplot(x="log_income", data=datalog.sample(
+    frac=.01), color=".25", alpha=0.05)
+
+# %%
+disper_table(datalog, 'log_income')
+disper_table(data, 'Income')
+
+
+# %%
+
+# COMPANY
+
+data['Company'].describe()
+data['Company'].value_counts()
+tab(data, 'Company', norm=True)
+
+# %%
+pieplot(data, 'Company', title='Company Pie Chart')
+cntplot(data['Company'], data, title='Company Countplot')
+
+
+# %%
+
+# CITY
+
+data['City'].describe()
+data['City'].value_counts()
+tab(data, 'City', norm=True)
+
+# %%
+
+order = data['City'].value_counts().sort_values(ascending=False)
+order.shape
+
+
+# %%
+sns.set_context('notebook')
+sns.catplot(x=data['City'], data=data,
+            kind='count', order=order.index,
+            palette="viridis")
+plt.xticks(rotation=90)
+plt.show()
+
+
+# %%
+
+# DATE OF TRAVEL
+data['Date of Travel'] = data['Date of Travel'].apply(
+    lambda s: xlrd.xldate.xldate_as_datetime(s, 0))
+
+# %%
+
+g = sns.relplot(x=data['Date of Travel'],
+                y=data['Price Charged'],
+                data=data,
+                kind='line')
+g.fig.set_size_inches(15, 15)
+
+# %%
+
+seriesdata = data.loc[:, ['Date of Travel', 'Price Charged']]
+seriesdata.set_index('Date of Travel').plot(linewidth=0.1)
+
+# Add x-axis and y-axis
+fig, ax = plt.subplots(figsize=(12, 12))
+ax.bar(seriesdata.index.values,
+       seriesdata['Price Charged'])
+
+# Define the date format
+date_form = DateFormatter("%m-%y")
+ax.xaxis.set_major_formatter(date_form)
+
+# Ensure a major tick for each week using (interval=1)
+ax.xaxis.set_major_locator(mdates.WeekdayLocator(interval=1))
+
+plt.show()
 
 
 # %%
@@ -291,23 +415,14 @@ sns.heatmap(data_num.corr(), annot=True)
 
 # %%
 
-data['Date of Travel'].apply(lambda s: xlrd.xldate.xldate_as_datetime(s, 0))
-
 
 # %%
-
-data['Date of Travel']
 
 
 # %%%
 
 val_customer['nan_count'].sum()
 
-# %%
-!pip install dtale
-# %%
-
-data.isnull().sum()
 
 # %%
 data.groupby(by='Customer ID')['Price Charged'].mean()
