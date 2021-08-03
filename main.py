@@ -387,37 +387,76 @@ g = sns.relplot(x=data['Date of Travel'],
 g.fig.set_size_inches(15, 15)
 
 # %%
+# KM TRAVELLED
 
-seriesdata = data.loc[:, ['Date of Travel', 'Price Charged']]
-seriesdata.set_index('Date of Travel').plot(linewidth=0.1)
+disper_table(data, 'KM Travelled')
 
-# Add x-axis and y-axis
-fig, ax = plt.subplots(figsize=(12, 12))
-ax.bar(seriesdata.index.values,
-       seriesdata['Price Charged'])
 
-# Define the date format
-date_form = DateFormatter("%m-%y")
-ax.xaxis.set_major_formatter(date_form)
+# %%
+# Distribution of the variable
+data['Income'].hist(bins=30)
 
-# Ensure a major tick for each week using (interval=1)
-ax.xaxis.set_major_locator(mdates.WeekdayLocator(interval=1))
 
-plt.show()
+# %%
+sns.boxplot(x='KM Travelled', data=data, linewidth=1.5, orient="h",
+            palette=random.choices(colors_list, k=1))
+sns.swarmplot(x='KM Travelled', data=data.sample(
+    frac=.01), color=".25", alpha=0.05)
+
+
+# %%
+# PRICE CHARGED
+
+disper_table(data, 'Price Charged')
+
+
+# %%
+data['Price Charged'].hist(bins=30)
+
+# %%
+
+sns.boxplot(x='Price Charged', data=data, linewidth=1.5, orient="h",
+            palette=random.choices(colors_list, k=1))
+sns.swarmplot(x='Price Charged', data=data.sample(
+    frac=.01), color=".25", alpha=0.05)
 
 
 # %%
 
-data_num = data.select_dtypes(include=["number"])
-data_num.corr()
-sns.heatmap(data_num.corr(), annot=True)
+# There are many outliers in the 'Price Charged' Variable, it is better to
+# drop them in order to clean our data. Interquartile Range method is going to
+# be used
+
+Q1 = data['Price Charged'].quantile(0.25)
+Q3 = data['Price Charged'].quantile(0.75)
+
+IQR = Q3 - Q1
+
+data = data[(data['Price Charged'] >= (Q1 - 1.5*IQR)) &
+            (data['Price Charged'] <= (Q3 + 1.5*IQR))]
+
+# %%
+data.shape
+
+# %%
+# COST OF THE TRIP
+data['Cost of Trip'].hist(bins=30)
+
+# %%
+sns.boxplot(x='Cost of Trip', data=data, linewidth=1.5, orient="h",
+            palette=random.choices(colors_list, k=1))
+sns.swarmplot(x='Cost of Trip', data=data.sample(
+    frac=.01), color=".25", alpha=0.05)
 
 
 # %%
 
+data['Population'] = data['Population'].str.replace(',', '').astype(float)
+
 
 # %%
 
+data['Population']
 
 # %%%
 
@@ -427,3 +466,8 @@ val_customer['nan_count'].sum()
 # %%
 data.groupby(by='Customer ID')['Price Charged'].mean()
 # %%
+# %%
+
+data_num = data.select_dtypes(include=["number"])
+data_num.corr()
+sns.heatmap(data_num.corr(), annot=True)
