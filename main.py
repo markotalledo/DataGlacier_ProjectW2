@@ -41,10 +41,12 @@ pd.options.display.max_rows = 1000
 # DATA
 
 # Importing dataset to work with them
-cab_data = pd.read_csv('data/in/Cab_Data.csv')
-city_data = pd.read_csv('data/in/City.csv')
-customerID = pd.read_csv('data/in/Customer_ID.csv')
-transacID = pd.read_csv('data/in/Transaction_ID.csv')
+
+path = 'data/in/'
+cab_data = pd.read_csv(path + 'Cab_Data.csv')
+city_data = pd.read_csv(path + 'City.csv')
+customerID = pd.read_csv(path + 'Customer_ID.csv')
+transacID = pd.read_csv(path + 'Transaction_ID.csv')
 
 
 # %%
@@ -123,7 +125,7 @@ val_customer
 # %%
 
 # We'll assume that the information of every customer that
-# has 25% NAN data or more is not useful because
+# has 50% NAN data or more is not useful because
 # It's not a loyal customer for our company
 # So We'll proceed to clean that data
 
@@ -241,6 +243,24 @@ def disper_table(data, col):
     return pd.DataFrame(table, columns=table[0]).drop([0])
 
 
+# OUTLIER REMOVER
+def outlier_remover(data, cuantcol, cualcol):
+    for c in data[cuantcol].unique():
+        Q1 = data.loc[data[cualcol] == c, [cuantcol]].quantile(0.25)
+        Q3 = data.loc[data[cualcol] == c, [cuantcol]].quantile(0.75)
+        IQR = Q3 - Q1
+        LL = float(Q1 - 1.5*IQR)
+        RL = float(Q3 + 1.5*IQR)
+        cond1 = (data[cualcol] == c) & (data[cuantcol] >= LL)
+        cond2 = (data[cualcol] == c) & (data[cuantcol] <= RL)
+        if c == data[cualcol].unique()[0]:
+            data_out = data.loc[cond1 & cond2, :]
+        else:
+            dummy = data.loc[cond1 & cond2, :]
+            data_out = pd.concat([data_out, dummy])
+        print(data_out.shape)
+
+
 # %%
 # DATA MANIPULATION & Visualization
 # %%
@@ -285,7 +305,6 @@ cntplot(data['Gender'], data, title='Gender Countplot')
 disper_table(data, 'Age')
 
 # %%
-
 # Distribution of the variable
 data['Age'].hist(bins=15)
 
@@ -458,16 +477,209 @@ data['Population'] = data['Population'].str.replace(',', '').astype(float)
 
 data['Population']
 
-# %%%
+# %%
 
-val_customer['nan_count'].sum()
+data['Users'] = data['Users'].str.replace(',', '').astype(float)
+
+# %%
+data['Users']
 
 
 # %%
-data.groupby(by='Customer ID')['Price Charged'].mean()
+
+data['Profit'] = data['Price Charged'] - data['Cost of Trip']
+data['Profit']
+
 # %%
+
+h = sns.relplot(x=data['Date of Travel'],
+                y=data['Profit'],
+                data=data,
+                kind='line')
+h.fig.set_size_inches(15, 15)
+
+
+# %%
+data.groupby(by='City')['Price Charged'].mean()
+# %%
+# %%
+
+
+# Grafico de usuarios por ciudad
+# sacar la ganancia por ciudad / ratio ganancia/nro usuarios
+# ratio de usuarios/poblacion
+# diferenciar graficos entre categorias (Genero, company,
+# metodo de pago)
+# KM Travelled
+# Crear nueva variable de estaciones
+# Ver dias festivos de USA
+
+# %%
+
+data['cost_per_km'] = data['Cost of Trip'] / data['KM Travelled']
+data['cost_per_km']
+
+# %%
+data.loc[:, ['cost_per_km', 'City', 'Date of Travel']]
+
+# %%
+cost_medians = data.groupby('City')['cost_per_km'].median()
+
+# %%
+cost_medians['ATLANTA GA']
+
+
+# %%
+for cit in data['City'].unique():
+    data.loc[data['City'] == cit, ['cost_per_km']] = cost_medians[cit]
+print(data)
+
+# %%
+data['profit_per_km'] = data['Profit'] / data['KM Travelled']
+data['profit_per_km']
+
+# %%
+
+
+sns.boxplot(x='City', y='profit_per_km', data=data_out, linewidth=1.5,
+            palette=random.choices(colors_list, k=1))
+plt.xticks(rotation=90)
+
+
+# %%
+Q1 = data['profit_per_km'].quantile(0.25)
+Q3 = data['profit_per_km'].quantile(0.75)
+
+IQR = Q3 - Q1
+IQR
+
+data = data[(data['profit_per_km'] >= (Q1 - 1.5*IQR)) &
+            (data['profit_per_km'] <= (Q3 + 1.5*IQR))]
+
+
+# %%
+Q1 = data['Profit'].quantile(0.25)
+Q3 = data['Profit'].quantile(0.75)
+
+IQR = Q3 - Q1
+IQR
+
+data = data[(data['Profit'] >= (Q1 - 1.5*IQR)) &
+            (data['Profit'] <= (Q3 + 1.5*IQR))]
+
+
+# %%
+
+data.groupby(by='City')['profit_per_km'].mean()
+
+
+# %%
+for c in data['City'].unique():
+    Q1 = data.loc[data['City'] == c, ['Profit']].quantile(0.25)
+    Q3 = data.loc[data['City'] == c, ['Profit']].quantile(0.75)
+    IQR = Q3 - Q1
+    LL = float(Q1 - 1.5*IQR)
+    RL = float(Q3 + 1.5*IQR)
+    cond1 = (data['City'] == c) & (data['Profit'] >= LL)
+    cond2 = (data['City'] == c) & (data['Profit'] <= RL)
+    if c == data['City'].unique()[0]:
+        outdata = data.loc[cond1 & cond2, :]
+    else:
+        dummy = data.loc[cond1 & cond2, :]
+        outdata = pd.concat([outdata, dummy])
+    print(outdata.shape)
+
+
+# %%
+
+data_num
+
+# %%
+
+# %%
+
+sns.boxplot(x='City', y='Profit', data=outdata)
+plt.xticks(rotation=90)
+plt.show()
+
+# %%
+
+for c in outdata['City'].unique():
+    Q1 = outdata.loc[outdata['City'] == c, ['profit_per_km']].quantile(0.25)
+    Q3 = outdata.loc[outdata['City'] == c, ['profit_per_km']].quantile(0.75)
+    IQR = Q3 - Q1
+    LL = float(Q1 - 1.5*IQR)
+    RL = float(Q3 + 1.5*IQR)
+    cond1 = (outdata['City'] == c) & (outdata['profit_per_km'] >= LL)
+    cond2 = (outdata['City'] == c) & (outdata['profit_per_km'] <= RL)
+    if c == outdata['City'].unique()[0]:
+        data_out = outdata.loc[cond1 & cond2, :]
+    else:
+        dummy = outdata.loc[cond1 & cond2, :]
+        data_out = pd.concat([data_out, dummy])
+    print(data_out.shape)
+
+
+# %%
+
+sns.boxplot(x='Company', y='profit_per_km', data=data_out)
+plt.xticks(rotation=90)
+plt.show()
+
+
+# %%
+
+# VARIABLES COMPARISON
+
+# NUMERIC VS NUMERIC
+
+
 # %%
 
 data_num = data.select_dtypes(include=["number"])
 data_num.corr()
 sns.heatmap(data_num.corr(), annot=True)
+
+# WE SAW THAT SOME VARIABLES HAVE STRONG CORRELATIONS BETWEEN THEM
+# MAYBE IT WOULD BE BETTER TO SEE GRAPHICALLY THE INTERACTION OF THOSE
+# VARIABLES
+
+
+# users vs profit, cost per km, profit per km
+# profit per km vs cost per km
+
+# %%
+# KM
+for var in ['Cost of Trip', 'Profit']:
+    sns.relplot(x='KM Travelled', y=var, data=data_out,
+                kind='scatter')
+
+
+# %%
+
+# PRICE
+for var in ['Cost of Trip']:
+    sns.relplot(x='Price Charged', y=var, data=data_out,
+                kind='scatter')
+
+
+# %%
+sns.relplot(x='KM Travelled', y='Cost of Trip', data=data_out,
+            kind='scatter', hue='Company', row='Gender')
+
+
+# %%
+
+# MODELING
+# modelo parta sacar el profit dado los imputs
+# voy a hallar el mayor ratio de inversion
+# modelo para ver que compañia preferirian
+#
+
+# %%
+
+data_out.columns
+
+# COMPANY, GENDER, PAYMENT MODE ,CITY
+
+# %%
