@@ -3,6 +3,9 @@
 
 # libraries
 
+import fbprophet
+from pylab import rcParams
+import calendar
 import matplotlib.dates as mdates
 from matplotlib.dates import DateFormatter
 import xlrd
@@ -35,6 +38,9 @@ warnings.filterwarnings('ignore')
 # Showing determined number of columns
 pd.options.display.max_columns = 50
 pd.options.display.max_rows = 1000
+
+sns.set_style('whitegrid')
+sns.set_context('notebook')
 
 # %%
 
@@ -484,6 +490,8 @@ data['Users'] = data['Users'].str.replace(',', '').astype(float)
 # %%
 data['Users']
 
+data.groupby(by=['City', 'Company'])[['Users']].count()
+
 
 # %%
 
@@ -496,31 +504,16 @@ h = sns.relplot(x=data['Date of Travel'],
                 y=data['Profit'],
                 data=data,
                 kind='line')
-h.fig.set_size_inches(15, 15)
+h.fig.set_size_inches(30, 10)
 
 
 # %%
-data.groupby(by='City')['Price Charged'].mean()
-# %%
-# %%
 
-
-# Grafico de usuarios por ciudad
-# sacar la ganancia por ciudad / ratio ganancia/nro usuarios
-# ratio de usuarios/poblacion
-# diferenciar graficos entre categorias (Genero, company,
-# metodo de pago)
-# KM Travelled
-# Crear nueva variable de estaciones
-# Ver dias festivos de USA
-
-# %%
+# KPI CREATION
 
 data['cost_per_km'] = data['Cost of Trip'] / data['KM Travelled']
 data['cost_per_km']
 
-# %%
-data.loc[:, ['cost_per_km', 'City', 'Date of Travel']]
 
 # %%
 cost_medians = data.groupby('City')['cost_per_km'].median()
@@ -530,23 +523,21 @@ cost_medians['ATLANTA GA']
 
 
 # %%
+# STANDARIZING COST PER KM FOR EACH CITY
+
 for cit in data['City'].unique():
     data.loc[data['City'] == cit, ['cost_per_km']] = cost_medians[cit]
 print(data)
 
 # %%
+
+# CREATING KPI
 data['profit_per_km'] = data['Profit'] / data['KM Travelled']
 data['profit_per_km']
 
 # %%
 
-
-sns.boxplot(x='City', y='profit_per_km', data=data_out, linewidth=1.5,
-            palette=random.choices(colors_list, k=1))
-plt.xticks(rotation=90)
-
-
-# %%
+# REMOVING OUTLIER
 Q1 = data['profit_per_km'].quantile(0.25)
 Q3 = data['profit_per_km'].quantile(0.75)
 
@@ -558,6 +549,8 @@ data = data[(data['profit_per_km'] >= (Q1 - 1.5*IQR)) &
 
 
 # %%
+
+# REMOVING OUTLIERS
 Q1 = data['Profit'].quantile(0.25)
 Q3 = data['Profit'].quantile(0.75)
 
@@ -570,10 +563,8 @@ data = data[(data['Profit'] >= (Q1 - 1.5*IQR)) &
 
 # %%
 
-data.groupby(by='City')['profit_per_km'].mean()
 
-
-# %%
+# REMOVING OUTLIERS PER CITY
 for c in data['City'].unique():
     Q1 = data.loc[data['City'] == c, ['Profit']].quantile(0.25)
     Q3 = data.loc[data['City'] == c, ['Profit']].quantile(0.75)
@@ -592,17 +583,19 @@ for c in data['City'].unique():
 
 # %%
 
-data_num
+# BOXPLOT OF PROFIT DISTRIBUTION PER CITY
 
-# %%
-
-# %%
-
-sns.boxplot(x='City', y='Profit', data=outdata)
+order = outdata.groupby(by=["City"])["Profit"].median(
+).iloc[::-1].sort_values(ascending=False).index
+order
+sns.boxplot(x='City', y='Profit', data=outdata, order=order)
 plt.xticks(rotation=90)
 plt.show()
 
+
 # %%
+
+# REMOVING OUTLIERS PER CITY
 
 for c in outdata['City'].unique():
     Q1 = outdata.loc[outdata['City'] == c, ['profit_per_km']].quantile(0.25)
@@ -621,32 +614,35 @@ for c in outdata['City'].unique():
 
 
 # %%
-
-sns.boxplot(x='Company', y='profit_per_km', data=data_out)
+order = data_out.groupby(by=["City"])["profit_per_km"].median(
+).iloc[::-1].sort_values(ascending=False).index
+order
+sns.boxplot(x='City', y='profit_per_km', data=data_out, order=order)
 plt.xticks(rotation=90)
 plt.show()
 
 
 # %%
 
-# VARIABLES COMPARISON
 
-# NUMERIC VS NUMERIC
+sns.boxplot(x='City', y='cost_per_km', data=data_out, linewidth=1.5)
+plt.xticks(rotation=90)
 
 
 # %%
 
-data_num = data.select_dtypes(include=["number"])
-data_num.corr()
-sns.heatmap(data_num.corr(), annot=True)
+# VARIABLES COMPARISON
+
+
+# NUMERIC VS NUMERIC
+
 
 # WE SAW THAT SOME VARIABLES HAVE STRONG CORRELATIONS BETWEEN THEM
 # MAYBE IT WOULD BE BETTER TO SEE GRAPHICALLY THE INTERACTION OF THOSE
 # VARIABLES
 
 
-# users vs profit, cost per km, profit per km
-# profit per km vs cost per km
+# For modelling erase: profit, price charged, users, population, cost of trip
 
 # %%
 # KM
@@ -662,24 +658,196 @@ for var in ['Cost of Trip']:
     sns.relplot(x='Price Charged', y=var, data=data_out,
                 kind='scatter')
 
-
 # %%
 sns.relplot(x='KM Travelled', y='Cost of Trip', data=data_out,
-            kind='scatter', hue='Company', row='Gender')
+            kind='scatter', hue='Company', row='Gender', col='Payment_Mode',
+            palette=['Pink', 'Yellow'], alpha=0.005)
+
+
+# %%
+sns.relplot(x='Cost of Trip', y='Price Charged', data=data_out,
+            kind='scatter', hue='Gender', row='Company', col='Payment_Mode',
+            palette=random.choices(colors_list, k=2), alpha=0.005)
+
+
+# PAYMENT MODE
+# GENDER
+# Company
+#
+# %%
+
+sns.relplot(x='cost_per_km', y='profit_per_km', data=data_out,
+            kind='scatter', hue='Gender', row='Company', col='Payment_Mode',
+            palette=random.choices(colors_list, k=2), alpha=0.005)
 
 
 # %%
 
+# cost per km / city
+
+sns.catplot(x='cost_per_km', y='City', data=data_out,
+            kind='point', palette='viridis',
+            order=data_out.groupby('City')['cost_per_km'].mean().sort_values(ascending=True).index)
+plt.xticks(rotation=90)
+
+
+# %%
+# %%
+
+data_num = data_out.select_dtypes(include=["number"])
+data_num.corr()
+sns.heatmap(data_num.corr(), annot=True)
+
+# %%
+
+# TIME DATA
+# Crear nueva variable de estaciones
+# Ver dias festivos de USA
+
+data_num = data_num.merge(
+    data_out[['Transaction ID', 'Date of Travel']], how='inner')
+data_num
+
+# %%
+numtimedata = data_num.copy()
+numtimedata = numtimedata.set_index('Date of Travel')
+numtimedata
+
+
+# %%
+
+numtimedata.plot(subplots=True, figsize=(10, 12))
+
+# %%
+
+df_month = numtimedata.resample("M").mean()
+fig, ax = plt.subplots(figsize=(10, 6))
+ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
+ax.bar(df_month['2016':].index, df_month.loc['2016':,
+       "Profit"], width=25, align='center')
+
+# %%
+
+numtimedata
+
+
+# %%
+
+numtimedata['Month'] = pd.DatetimeIndex(numtimedata.index).month
+numtimedata['Year'] = pd.DatetimeIndex(numtimedata.index).year
+
+# %%
+
+fig, axes = plt.subplots(4, 1, figsize=(10, 16), sharex=True)
+for name, ax in zip(['Profit', 'profit_per_km', 'KM Travelled', 'Cost of Trip'], axes):
+    sns.boxplot(data=numtimedata, x='Month', y=name, ax=ax)
+    ax.set_ylabel("")
+    ax.set_title(name)
+    if ax != axes[-1]:
+        ax.set_xlabel('')
+
+
+# %%
+df_month['Profit'].plot(figsize=(8, 6))
+
+# %%
+sns.catplot(x='Month', kind='count',
+            col='Year', data=numtimedata, palette='viridis')
+
+# %%
+
+
+# %%
+numtimedata['pct_change'] = numtimedata['Profit'].pct_change()*100
+
+# %%
+
+
+numtimedata['date'] = numtimedata.index
+
+
+# %%
+start = '2018-01-01'
+end = '2018-12-31'
+perdata = numtimedata.loc[(numtimedata['date'] >= start) & (
+    numtimedata['date'] <= end), ['pct_change']]
+
+# %%
+
+fig, ax = plt.subplots()
+perdata.plot(kind='bar', color='coral', ax=ax)
+plt.xticks(rotation=45)
+ax.legend()
+
+
+# %%
+
+# %%
+df_month
+
+
+# %%
+
+
+rcParams['figure.figsize'] = 11, 9
+decomposition = sm.tsa.seasonal_decompose(df_month['Profit'], model='Additive')
+
+
+# %%
+fig = decomposition.plot()
+plt.show()
+
+# %%
+df_month.loc[:, 'pct_change'] = df_month.Profit.pct_change()*100
+fig, ax = plt.subplots()
+df_month['pct_change'].plot(kind='bar', color='coral', ax=ax)
+ax.xaxis.set_major_locator(mdates.WeekdayLocator())
+plt.xticks(rotation=45)
+ax.legend()
+
+
+# %%
 # MODELING
-# modelo parta sacar el profit dado los imputs
+# modelo parta sacar el profit_per_km dado los imputs
 # voy a hallar el mayor ratio de inversion
 # modelo para ver que compañia preferirian
+# No te olvides separar las variables de flag_target_city
 #
 
 # %%
 
-data_out.columns
-
-# COMPANY, GENDER, PAYMENT MODE ,CITY
 
 # %%
+
+regdata = data_num.loc[:, np.isin(data_num.columns, ['Profit', 'Price Charged', 'Users', 'Population',
+                                                     'Cost of Trip'], invert=True)]
+
+# %%
+regdata.corr()
+sns.heatmap(regdata.corr(), annot=True)
+
+
+# Modelo para ver a que compañia irian
+# flag company
+
+
+# Modelo para hallar el profit dada la transaccion historica
+
+# %%
+
+pip install fbprophet
+
+# %%
+df = df_month
+df.reset_index(inplace=True)
+# %%
+df = df.rename(columns={'Date of Travel': 'ds', 'Profit': 'y'})
+df.head()
+# %%
+df_prop = fbprophet.Prophet(changepoint_prior_scale=0.1)
+df_prop.fit(df)
+
+# %%
+
+df_forecast = df_prop.make_future_dataframe(periods=30*2, freq='D')
+df_forecast = df_prop.predict(df_forecast)
