@@ -1,6 +1,7 @@
 # %%
 # EXPLORATORY DATA ANALYSIS
 
+# %%
 # libraries
 
 import fbprophet
@@ -163,6 +164,7 @@ data.isnull().sum()
 
 data = df1.merge(df2, on="Transaction ID", how='inner')
 data.shape
+
 
 # %%
 
@@ -690,13 +692,16 @@ sns.catplot(x='cost_per_km', y='City', data=data_out,
             order=data_out.groupby('City')['cost_per_km'].mean().sort_values(ascending=True).index)
 plt.xticks(rotation=90)
 
-
 # %%
+data_out
+
+
 # %%
 
 data_num = data_out.select_dtypes(include=["number"])
 data_num.corr()
 sns.heatmap(data_num.corr(), annot=True)
+
 
 # %%
 
@@ -705,13 +710,18 @@ sns.heatmap(data_num.corr(), annot=True)
 # Ver dias festivos de USA
 
 data_num = data_num.merge(
-    data_out[['Transaction ID', 'Date of Travel']], how='inner')
-data_num
+    data_out[['Transaction ID', 'Customer ID', 'Date of Travel']], on=data_num.index, how='inner')
+
+# %%
+data_num = data_num.drop(columns=['key_0'], axis=1)
 
 # %%
 numtimedata = data_num.copy()
 numtimedata = numtimedata.set_index('Date of Travel')
 numtimedata
+
+
+# %%
 
 
 # %%
@@ -735,6 +745,28 @@ numtimedata
 
 numtimedata['Month'] = pd.DatetimeIndex(numtimedata.index).month
 numtimedata['Year'] = pd.DatetimeIndex(numtimedata.index).year
+# %%
+
+numtimedata.drop(columns=['Transaction ID_y'], inplace=True)
+
+# %%
+numtimedata.rename(
+    columns={'Transaction ID_x': 'Transaction ID'}, inplace=True)
+numtimedata
+
+# %% WE MUST APPLYT THIS ANALYSIS ON THE CUSTOMERS THAT LIVES IN THE TOP CITIES
+rfmdata = numtimedata.groupby(by=['Customer ID', 'Year']).count()[
+    'Transaction ID'].sort_values(ascending=False)
+TPYdata = pd.DataFrame(rfmdata)
+TPYdata.rename(columns={'Transaction ID': 'TPY'}, inplace=True)
+TPYdata.sort_values(['Year', 'TPY'], ascending=[False, False])
+
+
+# %%
+TPYdata.reset_index(level=0, inplace=True)
+TPYdata
+# %%
+TPYdata.loc[(TPYdata['Year'] == 2018) & (TPYdata['TPY'] >= 10), :]
 
 # %%
 
@@ -751,40 +783,21 @@ for name, ax in zip(['Profit', 'profit_per_km', 'KM Travelled', 'Cost of Trip'],
 df_month['Profit'].plot(figsize=(8, 6))
 
 # %%
+numtimedata.groupby(['Year', 'Month'])[
+    'KM Travelled'].mean().plot(figsize=(8, 6))
+
+# %%
 sns.catplot(x='Month', kind='count',
             col='Year', data=numtimedata, palette='viridis')
 
-# %%
-
 
 # %%
-numtimedata['pct_change'] = numtimedata['Profit'].pct_change()*100
-
-# %%
-
-
-numtimedata['date'] = numtimedata.index
-
-
-# %%
-start = '2018-01-01'
-end = '2018-12-31'
-perdata = numtimedata.loc[(numtimedata['date'] >= start) & (
-    numtimedata['date'] <= end), ['pct_change']]
-
-# %%
-
+df_month.loc[:, 'pct_change'] = df_month.Profit.pct_change()*100
 fig, ax = plt.subplots()
-perdata.plot(kind='bar', color='coral', ax=ax)
+df_month['pct_change'].plot(kind='bar', color='coral', ax=ax)
+ax.xaxis.set_major_locator(mdates.WeekdayLocator())
 plt.xticks(rotation=45)
 ax.legend()
-
-
-# %%
-
-# %%
-df_month
-
 
 # %%
 
@@ -798,12 +811,6 @@ fig = decomposition.plot()
 plt.show()
 
 # %%
-df_month.loc[:, 'pct_change'] = df_month.Profit.pct_change()*100
-fig, ax = plt.subplots()
-df_month['pct_change'].plot(kind='bar', color='coral', ax=ax)
-ax.xaxis.set_major_locator(mdates.WeekdayLocator())
-plt.xticks(rotation=45)
-ax.legend()
 
 
 # %%
@@ -835,16 +842,16 @@ sns.heatmap(regdata.corr(), annot=True)
 
 # %%
 
-pip install fbprophet
-
 # %%
 df = df_month
+
 df.reset_index(inplace=True)
 # %%
 df = df.rename(columns={'Date of Travel': 'ds', 'Profit': 'y'})
+df = df.loc[:, ['ds', 'y']]
 df.head()
 # %%
-df_prop = fbprophet.Prophet(changepoint_prior_scale=0.1)
+df_prop = fbprophet.Prophet()
 df_prop.fit(df)
 
 # %%
